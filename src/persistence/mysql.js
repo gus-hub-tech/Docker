@@ -21,33 +21,60 @@ async function init() {
     const password = PASSWORD_FILE ? fs.readFileSync(PASSWORD_FILE) : PASSWORD;
     const database = DB_FILE ? fs.readFileSync(DB_FILE) : DB;
 
-    await waitPort({ 
-        host, 
-        port: 3306,
-        timeout: 10000,
-        waitForDns: true,
-    });
+    const maxAttempts = 30;
+    let lastError;
 
-    pool = mysql.createPool({
-        connectionLimit: 5,
-        host,
-        user,
-        password,
-        database,
-        charset: 'utf8mb4',
-    });
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+        try {
+            await waitPort({
+                host,
+                port: 3306,
+                timeout: 2000,
+                waitForDns: true,
+            });
 
-    return new Promise((acc, rej) => {
-        pool.query(
-            'CREATE TABLE IF NOT EXISTS todo_items (id varchar(36), name varchar(255), completed boolean) DEFAULT CHARSET utf8mb4',
-            err => {
-                if (err) return rej(err);
+            pool = mysql.createPool({
+                connectionLimit: 5,
+                host,
+                user,
+                password,
+                database,
+                charset: 'utf8mb4',
+            });
 
-                console.log(`Connected to mysql db at host ${HOST}`);
-                acc();
-            },
-        );
-    });
+            await new Promise((acc, rej) => {
+                pool.query(
+                    'CREATE TABLE IF NOT EXISTS todo_items (id varchar(36), name varchar(255), completed boolean) DEFAULT CHARSET utf8mb4',
+                    err => {
+                        if (err) return rej(err);
+
+                        console.log(`Connected to mysql db at host ${host}`);
+                        acc();
+                    },
+                );
+            });
+
+            return;
+        } catch (err) {
+            lastError = err;
+            if (pool) {
+                await new Promise(resolve => {
+                    pool.end(err => {
+                        if (err) {
+                            console.error(err);
+                        }
+                        resolve();
+                    });
+                });
+                pool = undefined;
+            }
+            if (attempt < maxAttempts) {
+                await new Promise(resolve => setTimeout(resolve, 2000));
+            }
+        }
+    }
+
+    throw lastError;
 }
 
 async function teardown() {
