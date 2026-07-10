@@ -1,0 +1,11 @@
+# Files and directories that Git should ignore. Covers Node.js dependencies,
+# TypeScript build output, environment files, and common editor artifacts.
+# See https://git-scm.com/docs/gitignore for syntax reference.
+
+node_modules/
+dist/
+.env
+*.log
+.DS_Store
+coverage/
+db/password.txt
