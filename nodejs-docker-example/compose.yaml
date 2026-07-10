@@ -1,0 +1,10 @@
+services:
+  # Application service. The `target: dev` line builds the development
+  # image (includes tsx and dev tooling); the runner stage of the
+  # Dockerfile is unused in development.
+  server:
+    build:
+      context: .
+      target: dev
+    ports:
+      - 3000:3000
